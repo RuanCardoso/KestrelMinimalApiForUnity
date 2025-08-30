@@ -6,7 +6,7 @@ namespace KestrelMinimalApiForUnity;
 public class KestrelReader(Stream netStream, KestrelProcessor kProcessor)
 {
     private readonly byte[] header = new byte[Constants.headerSize];
-    private readonly byte[] data = new byte[4096 * 8 * 2]; // 65KB buffer
+    private readonly byte[] data = new byte[4096 * 8 * 2]; // 64KB buffer
 
     public void Run()
     {

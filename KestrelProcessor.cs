@@ -1,4 +1,6 @@
 using System.Collections.Concurrent;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 
 namespace KestrelMinimalApiForUnity;
@@ -17,7 +19,23 @@ public class KestrelProcessor(string[] args)
             options.ListenAnyIP(kOptions.Port, listenOptions =>
             {
                 listenOptions.Protocols = HttpProtocols.Http1AndHttp2;
+                if (kOptions.UseHttps && !string.IsNullOrEmpty(kOptions.CertificateFile))
+                {
+                    if (File.Exists(kOptions.CertificateFile))
+                    {
+                        var dict = JsonSerializer.Deserialize<Dictionary<string, string>>(File.ReadAllText(kOptions.CertificateFile))!;
+                        string certName = dict["cert"];
+                        string certPassword = dict["password"];
+                        listenOptions.UseHttps(certName, certPassword);
+                        Console.WriteLine($"Kestrel using HTTPS on port {kOptions.Port} with certificate {certName}");
+                    }
+                    else Console.WriteLine($"Certificate file not found: {kOptions.CertificateFile}");
+                }
             });
+
+            options.Limits.MaxConcurrentConnections = kOptions.MaxConnections;
+            options.Limits.RequestHeadersTimeout = TimeSpan.FromSeconds(kOptions.RequestTimeout);
+            Console.WriteLine($"Kestrel listening on port {kOptions.Port} with max connections {kOptions.MaxConnections} and request timeout {kOptions.RequestTimeout}s");
         });
 
         var app = builder.Build();

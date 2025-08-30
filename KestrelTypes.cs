@@ -37,8 +37,12 @@ public partial class KestrelRoute
 [MemoryPackable]
 public partial class KestrelOptions
 {
-    public int KeepAliveTimeout { get; set; } = 130;
+    public bool UseHttps { get; set; } = false;
+    public string? CertificateFile { get; set; }
     public int Port { get; set; } = 80;
+    public int KeepAliveTimeout { get; set; } = 130;
+    public int MaxConnections { get; set; } = 2000;
+    public int RequestTimeout { get; set; } = 30;
 }
 
 [MemoryPackable]
