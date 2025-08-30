@@ -1,18 +1,8 @@
 using MemoryPack;
 
-[MemoryPackable]
-public partial class KestrelRoute
-{
-    public string Route { get; set; } = "";
-    public string Method { get; set; } = "";
-}
+namespace KestrelMinimalApiForUnity;
 
-[MemoryPackable]
-public partial class KestrelOptions
-{
-    public int KeepAliveTimeout { get; set; } = 130;
-    public int Port { get; set; } = 80;
-}
+#region All
 
 public enum KestrelMessageType : byte
 {
@@ -31,6 +21,24 @@ public class KestrelChannelMessage
 {
     public KestrelMessageType MessageType;
     public byte[]? Payload;
+}
+
+#endregion
+
+#region MemoryPackable Classes
+
+[MemoryPackable]
+public partial class KestrelRoute
+{
+    public string? Route { get; set; }
+    public string? Method { get; set; }
+}
+
+[MemoryPackable]
+public partial class KestrelOptions
+{
+    public int KeepAliveTimeout { get; set; } = 130;
+    public int Port { get; set; } = 80;
 }
 
 [MemoryPackable]
@@ -56,3 +64,5 @@ public partial class KestrelResponse
     public long ContentLength64 { get; set; }
     public byte[]? Data { get; set; }
 }
+
+#endregion

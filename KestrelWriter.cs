@@ -2,12 +2,14 @@ using System.Collections.Concurrent;
 using System.Net;
 using MemoryPack;
 
-public class KestrelWriter(Stream stream, KestrelProcessor processor)
+namespace KestrelMinimalApiForUnity;
+
+public class KestrelWriter(Stream netStream, KestrelProcessor kProcessor)
 {
     private readonly BlockingCollection<KestrelChannelMessage> channel = [];
     public void Run()
     {
-        InitializeChannel();
+        Initialize();
         while (true)
         {
             var msg = channel.Take();
@@ -15,9 +17,9 @@ public class KestrelWriter(Stream stream, KestrelProcessor processor)
         }
     }
 
-    private void InitializeChannel()
+    private void Initialize()
     {
-        processor.OnRequest = (route, request, response) =>
+        kProcessor.OnRequest = (route, request, response) =>
         {
             IPAddress ipAddress = request.HttpContext.Connection.RemoteIpAddress ?? IPAddress.Loopback;
             int port = request.HttpContext.Connection.RemotePort;
@@ -33,15 +35,15 @@ public class KestrelWriter(Stream stream, KestrelProcessor processor)
                 RemoteEndPoint = new IPEndPoint(ipAddress, port).ToString()
             };
 
-            KestrelChannelMessage message = new()
+            KestrelChannelMessage channelMessage = new()
             {
                 MessageType = KestrelMessageType.DispatchRequest,
                 Payload = MemoryPackSerializer.Serialize(routeRequest)
             };
 
-            var task = processor.AddPendingRequest(routeRequest.UniqueId);
-            channel.Add(message);
-            return task;
+            var pendingTask = kProcessor.AddPendingRequest(routeRequest.UniqueId);
+            channel.Add(channelMessage);
+            return pendingTask;
         };
     }
 
@@ -60,7 +62,7 @@ public class KestrelWriter(Stream stream, KestrelProcessor processor)
             payload.CopyTo(packet[header.Length..]);
 
             // write the packet to the pipe
-            stream.Write(packet);
+            netStream.Write(packet);
         }
     }
 }

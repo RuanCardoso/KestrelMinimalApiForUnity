@@ -1,26 +1,29 @@
 using System.Collections.Concurrent;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 
+namespace KestrelMinimalApiForUnity;
+
 public class KestrelProcessor(string[] args)
 {
+    private const int kDefaultTimeoutMs = 2500;
     private readonly ConcurrentDictionary<string, TaskCompletionSource<KestrelResponse>> pendingRequests = new();
     public Func<KestrelRoute, HttpRequest, HttpResponse, Task<KestrelResponse>>? OnRequest;
-    public void Init(List<KestrelRoute> routes, KestrelOptions options)
+    public void Init(List<KestrelRoute> kRoutes, KestrelOptions kOptions)
     {
         var builder = WebApplication.CreateBuilder(args);
-        builder.WebHost.ConfigureKestrel((opt) =>
+        builder.WebHost.ConfigureKestrel((options) =>
         {
-            opt.Limits.KeepAliveTimeout = TimeSpan.FromSeconds(options.KeepAliveTimeout);
-            opt.ListenAnyIP(options.Port, listenOptions =>
+            options.Limits.KeepAliveTimeout = TimeSpan.FromSeconds(kOptions.KeepAliveTimeout);
+            options.ListenAnyIP(kOptions.Port, listenOptions =>
             {
                 listenOptions.Protocols = HttpProtocols.Http1AndHttp2;
             });
         });
 
         var app = builder.Build();
-        foreach (var route in routes)
+        foreach (var route in kRoutes)
         {
-            app.MapMethods(route.Route, [route.Method], async (HttpRequest request, HttpResponse response) =>
+            app.MapMethods(route.Route!, [route.Method!], async (HttpRequest request, HttpResponse response) =>
             {
                 try
                 {
@@ -47,7 +50,7 @@ public class KestrelProcessor(string[] args)
         var tcs = new TaskCompletionSource<KestrelResponse>();
         pendingRequests[uniqueId] = tcs;
 
-        var effectiveTimeout = TimeSpan.FromMilliseconds(5000);
+        var effectiveTimeout = TimeSpan.FromMilliseconds(kDefaultTimeoutMs);
         _ = Task.Delay(effectiveTimeout).ContinueWith(task =>
         {
             if (tcs.TrySetException(new TimeoutException(

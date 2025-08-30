@@ -1,14 +1,16 @@
 #pragma warning disable CS7022
 using MemoryPack;
 
-public class KestrelReader(Stream stream, KestrelProcessor processor)
+namespace KestrelMinimalApiForUnity;
+
+public class KestrelReader(Stream netStream, KestrelProcessor kProcessor)
 {
     private readonly byte[] header = new byte[Constants.headerSize];
-    private readonly byte[] data = new byte[4096 * 8]; // 32KB buffer
+    private readonly byte[] data = new byte[4096 * 8 * 2]; // 65KB buffer
 
     public void Run()
     {
-        KestrelOptions? options = null;
+        KestrelOptions? kOptions = null;
         Console.WriteLine("Kestrel successfully connected.");
 
         while (true)
@@ -16,19 +18,19 @@ public class KestrelReader(Stream stream, KestrelProcessor processor)
             try
             {
                 // read the header, exactly 4 bytes (int) + 1 (Kestrel Message)
-                stream.ReadExactly(header);
+                netStream.ReadExactly(header);
                 int length = BitConverter.ToInt32(header);
                 if (length > 0)
                 {
                     KestrelMessageType kestrelMessage = (KestrelMessageType)header[^1];
                     // read the rest of the data
                     Span<byte> payload = data.AsSpan()[..length];
-                    stream.ReadExactly(payload);
+                    netStream.ReadExactly(payload);
                     switch (kestrelMessage)
                     {
                         case KestrelMessageType.Initialize:
                             {
-                                options = MemoryPackSerializer.Deserialize<KestrelOptions>(payload);
+                                kOptions = MemoryPackSerializer.Deserialize<KestrelOptions>(payload);
                                 break;
                             }
                         case KestrelMessageType.AddRoutes:
@@ -40,13 +42,13 @@ public class KestrelReader(Stream stream, KestrelProcessor processor)
                                     break;
                                 }
 
-                                if (options == null)
+                                if (kOptions == null)
                                 {
                                     Console.WriteLine("Failed to initialize Kestrel, no options provided.");
                                     break;
                                 }
 
-                                processor.Init(routes, options);
+                                kProcessor.Init(routes, kOptions);
                                 break;
                             }
                         case KestrelMessageType.DispatchResponse:
@@ -58,7 +60,7 @@ public class KestrelReader(Stream stream, KestrelProcessor processor)
                                     break;
                                 }
 
-                                processor.CompletePendingRequest(response);
+                                kProcessor.CompletePendingRequest(response);
                                 break;
                             }
                         default:

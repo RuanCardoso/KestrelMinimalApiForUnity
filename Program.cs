@@ -1,35 +1,35 @@
-// With regards to thread safety for reading and writing, up to a single reader and a single writer can use an instance concurrently.
 using System.Net;
 using System.Net.Sockets;
 
-Console.WriteLine("Starting Kestrel...");
-TcpListener listener = new(IPAddress.Any, 7070);
-listener.Start();
+namespace KestrelMinimalApiForUnity;
 
-TcpClient client = listener.AcceptTcpClient();
-NetworkStream stream = client.GetStream();
-
-KestrelProcessor processor = new(args);
-KestrelReader reader = new(stream, processor);
-KestrelWriter writer = new(stream, processor);
-
-Thread readerTh = new((o) =>
+public class Kestrel
 {
-    reader.Run();
-})
-{
-    Priority = ThreadPriority.Highest
-};
+    private const int kPort = 60123;
+    private static void Main(string[] args)
+    {
+        Console.WriteLine("Starting Kestrel...");
+        TcpListener tcpServer = new(IPAddress.Any, kPort);
+        tcpServer.Start();
 
-Thread writerTh = new((o) =>
-{
-    writer.Run();
-})
-{
-    Priority = ThreadPriority.Highest
-};
+        TcpClient tcpClient = tcpServer.AcceptTcpClient();
+        NetworkStream netStream = tcpClient.GetStream();
 
-readerTh.Start();
-writerTh.Start();
+        KestrelProcessor kProcessor = new(args);
+        KestrelReader kReader = new(netStream, kProcessor);
+        KestrelWriter kWriter = new(netStream, kProcessor);
 
-Console.ReadKey();
+        Thread rTh = new((o) => kReader.Run())
+        {
+            Priority = ThreadPriority.Highest
+        };
+
+        Thread wTh = new((o) => kWriter.Run())
+        {
+            Priority = ThreadPriority.Highest
+        };
+
+        rTh.Start();
+        wTh.Start();
+    }
+}
