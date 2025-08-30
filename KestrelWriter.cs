@@ -1,16 +1,16 @@
-using System.IO.Pipes;
+using System.Collections.Concurrent;
 using System.Net;
-using System.Threading.Channels;
 using MemoryPack;
 
-public class KestrelWriter(NamedPipeServerStream pipeServer, KestrelProcessor processor)
+public class KestrelWriter(Stream stream, KestrelProcessor processor)
 {
-    private readonly Channel<KestrelChannelMessage> messageChannel = Channel.CreateUnbounded<KestrelChannelMessage>();
-    public async void Run()
+    private readonly BlockingCollection<KestrelChannelMessage> channel = [];
+    public void Run()
     {
         InitializeChannel();
-        await foreach (var msg in messageChannel.Reader.ReadAllAsync())
+        while (true)
         {
+            var msg = channel.Take();
             InternalSend(msg.MessageType, msg.Payload);
         }
     }
@@ -39,17 +39,14 @@ public class KestrelWriter(NamedPipeServerStream pipeServer, KestrelProcessor pr
                 Payload = MemoryPackSerializer.Serialize(routeRequest)
             };
 
-            var writer = messageChannel.Writer;
-            writer.TryWrite(message);
-            return processor.AddPendingRequest(routeRequest.UniqueId);
+            var task = processor.AddPendingRequest(routeRequest.UniqueId);
+            channel.Add(message);
+            return task;
         };
     }
 
     private void InternalSend(KestrelMessageType kestrelMessage, ReadOnlySpan<byte> payload)
     {
-        if (pipeServer == null || !pipeServer.IsConnected)
-            return;
-
         // write the header and payload to the pipe
         // header is 4 bytes for length and 1 byte for message type
         Span<byte> header = stackalloc byte[Constants.headerSize];
@@ -63,7 +60,7 @@ public class KestrelWriter(NamedPipeServerStream pipeServer, KestrelProcessor pr
             payload.CopyTo(packet[header.Length..]);
 
             // write the packet to the pipe
-            pipeServer.Write(packet);
+            stream.Write(packet);
         }
     }
 }

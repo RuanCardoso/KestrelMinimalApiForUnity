@@ -1,10 +1,17 @@
 // With regards to thread safety for reading and writing, up to a single reader and a single writer can use an instance concurrently.
-using System.IO.Pipes;
+using System.Net;
+using System.Net.Sockets;
 
-NamedPipeServerStream pipeServer = new("HttpPipe", PipeDirection.InOut, 1, PipeTransmissionMode.Byte, PipeOptions.Asynchronous);
+Console.WriteLine("Starting Kestrel...");
+TcpListener listener = new(IPAddress.Any, 7070);
+listener.Start();
+
+TcpClient client = listener.AcceptTcpClient();
+NetworkStream stream = client.GetStream();
+
 KestrelProcessor processor = new(args);
-KestrelReader reader = new(pipeServer, processor);
-KestrelWriter writer = new(pipeServer, processor);
+KestrelReader reader = new(stream, processor);
+KestrelWriter writer = new(stream, processor);
 
 Thread readerTh = new((o) =>
 {
@@ -24,24 +31,5 @@ Thread writerTh = new((o) =>
 
 readerTh.Start();
 writerTh.Start();
-
-//processor.Init(new List<KestrelRoute>
-//{
-//    new KestrelRoute
-//    {
-//        Method = "GET",
-//        Route = "/"
-//    },
-//    new KestrelRoute
-//    {
-//        Method = "POST",
-//        Route = "/post"
-//    }
-//}, new KestrelOptions
-//{
-//    Port = 80,
-//    KeepAliveTimeout = 120
-//});
-
 
 Console.ReadKey();

@@ -1,17 +1,14 @@
 #pragma warning disable CS7022
-using System.IO.Pipes;
 using MemoryPack;
 
-public class KestrelReader(NamedPipeServerStream pipeServer, KestrelProcessor processor)
+public class KestrelReader(Stream stream, KestrelProcessor processor)
 {
     private readonly byte[] header = new byte[Constants.headerSize];
-    private readonly byte[] data = new byte[4096 * 8 * 8]; // 32KB buffer
+    private readonly byte[] data = new byte[4096 * 8]; // 32KB buffer
 
     public void Run()
     {
-        Console.WriteLine("Starting Kestrel...");
         KestrelOptions? options = null;
-        pipeServer.WaitForConnection();
         Console.WriteLine("Kestrel successfully connected.");
 
         while (true)
@@ -19,14 +16,14 @@ public class KestrelReader(NamedPipeServerStream pipeServer, KestrelProcessor pr
             try
             {
                 // read the header, exactly 4 bytes (int) + 1 (Kestrel Message)
-                pipeServer.ReadExactly(header);
+                stream.ReadExactly(header);
                 int length = BitConverter.ToInt32(header);
                 if (length > 0)
                 {
                     KestrelMessageType kestrelMessage = (KestrelMessageType)header[^1];
                     // read the rest of the data
                     Span<byte> payload = data.AsSpan()[..length];
-                    pipeServer.ReadExactly(payload);
+                    stream.ReadExactly(payload);
                     switch (kestrelMessage)
                     {
                         case KestrelMessageType.Initialize:
