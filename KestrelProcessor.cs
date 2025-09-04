@@ -39,6 +39,25 @@ public class KestrelProcessor(string[] args)
         });
 
         var app = builder.Build();
+        app.Use(async (context, next) =>
+        {
+            if (kOptions.Domain == "*")
+            {
+                await next();
+                return;
+            }
+
+            var host = context.Request.Host.Host;
+            if (!host.Equals($"{kOptions.Domain}", StringComparison.OrdinalIgnoreCase) && !host.EndsWith($".{kOptions.Domain}", StringComparison.OrdinalIgnoreCase))
+            {
+                context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                await context.Response.WriteAsync("Firewall: Prohibited");
+                return;
+            }
+
+            await next();
+        });
+
         foreach (var route in kRoutes)
         {
             app.MapMethods(route.Route!, [route.Method!], async (HttpRequest request, HttpResponse response) =>

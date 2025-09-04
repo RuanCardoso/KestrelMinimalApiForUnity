@@ -39,6 +39,7 @@ public partial class KestrelOptions
 {
     public bool UseHttps { get; set; } = false;
     public string? CertificateFile { get; set; }
+    public string Domain { get; set; } = "*";
     public int Port { get; set; } = 80;
     public int KeepAliveTimeout { get; set; } = 130;
     public int MaxConnections { get; set; } = 2000;
