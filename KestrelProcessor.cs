@@ -65,16 +65,22 @@ public class KestrelProcessor(string[] args)
                 try
                 {
                     var kResponse = await OnRequest!.Invoke(route, request, response);
+                    kResponse.Cookies!.ApplyTo(response.Cookies);
+                    kResponse.Headers!.ApplyTo(response.Headers);
+
+                    // Response options
                     response.ContentLength = kResponse.ContentLength64;
                     response.ContentType = kResponse.ContentType;
                     response.StatusCode = kResponse.StatusCode;
                     response.Headers.Connection = kResponse.KeepAlive ? "keep-alive" : "close";
+
+                    // Send the response to the client
                     await response.BodyWriter.WriteAsync(kResponse.Data);
                 }
                 catch (Exception ex)
                 {
-                    response.StatusCode = StatusCodes.Status408RequestTimeout;
-                    await response.WriteAsync($"Timeout: {ex.Message}");
+                    response.StatusCode = StatusCodes.Status500InternalServerError;
+                    await response.WriteAsync($"Message: {ex.Message}");
                 }
             });
         }

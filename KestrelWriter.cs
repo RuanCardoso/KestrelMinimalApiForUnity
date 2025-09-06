@@ -19,16 +19,24 @@ public class KestrelWriter(Stream netStream, KestrelProcessor kProcessor)
 
     private void Initialize()
     {
-        kProcessor.OnRequest = (route, request, response) =>
+        kProcessor.OnRequest = async (route, request, response) =>
         {
             IPAddress ipAddress = request.HttpContext.Connection.RemoteIpAddress ?? IPAddress.Loopback;
             int port = request.HttpContext.Connection.RemotePort;
+
+            // Post parameters
+            using var ms = new MemoryStream();
+            await request.Body.CopyToAsync(ms);
+
             KestrelRequest routeRequest = new()
             {
+                InputStream = ms.ToArray(),
+                Cookies = request.Cookies.ToSerializable(),
+                Headers = request.Headers.ToSerializable(),
                 Route = route,
                 UniqueId = $"{route.Route}_{Guid.NewGuid()}",
                 RawUrl = request.Path + request.QueryString,
-                ContentType = request.ContentType ?? "",
+                ContentType = request.ContentType ?? "Unk",
                 HttpMethod = request.Method,
                 IsSecureConnection = request.IsHttps,
                 QueryString = request.QueryString.ToString(),
@@ -43,7 +51,7 @@ public class KestrelWriter(Stream netStream, KestrelProcessor kProcessor)
 
             var pendingTask = kProcessor.AddPendingRequest(routeRequest.UniqueId);
             channel.Add(channelMessage);
-            return pendingTask;
+            return await pendingTask;
         };
     }
 
